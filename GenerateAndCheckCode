@@ -1,0 +1,71 @@
+-- Kod üretimi için stored procedure
+CREATE PROCEDURE [dbo].[generate_codes]
+AS
+BEGIN
+    DECLARE @CodeCount INT = 0;
+    DECLARE @Code VARCHAR(8);
+    DECLARE @CharacterSet VARCHAR(25) = 'ACDEFGHKLMNPRTXYZ234579'; -- Belirlenen karakter kümesi
+    
+    -- Temporary table
+    CREATE TABLE #GeneratedCodes (
+        Code VARCHAR(8) PRIMARY KEY
+    );
+
+    -- İstenen sayıda unique kod üretilene kadar döngü
+    WHILE @CodeCount < 1000  
+    BEGIN
+        SET @Code = ''; -- Her döngü başında kodu sıfırla
+        
+        -- Belirlenen karakter kümesinden rastgele 8 karakterli bir kod oluşturur
+        WHILE LEN(@Code) < 8
+        BEGIN
+            -- Karakter kümesinden rastgele bir karakter seçer
+            SET @Code = @Code + SUBSTRING(@CharacterSet, CAST(RAND() * LEN(@CharacterSet) + 1 AS INT), 1);
+        END;
+        
+        -- Üretilen kodun önceden olup olmadığını kontrol eder
+        IF NOT EXISTS (SELECT 1 FROM #GeneratedCodes WHERE Code = @Code)
+        BEGIN
+            -- Unique kodu Temporary table'a Insert eder
+            INSERT INTO #GeneratedCodes (Code) VALUES (@Code);
+            SET @CodeCount = @CodeCount + 1; 
+        END;
+    END;
+    
+    SELECT Code FROM #GeneratedCodes;
+    
+    DROP TABLE #GeneratedCodes;
+END
+
+
+CREATE PROCEDURE [dbo].[check_code]
+@Code VARCHAR(8),
+@IsValid INT OUTPUT
+AS
+BEGIN
+    -- Kodun uzunluğunu kontrol eder
+    IF LEN(@Code) <> 8
+    BEGIN
+        SET @IsValid = 0; -- Geçersiz kod
+        RETURN;
+    END;
+    
+    DECLARE @CharacterSet VARCHAR(25) = 'ACDEFGHKLMNPRTXYZ234579';
+    DECLARE @Index INT = 1;
+    DECLARE @Char CHAR(1);
+    
+    -- Kodun her bir karakterini kontrol et
+    WHILE @Index <= 8
+    BEGIN
+        SET @Char = SUBSTRING(@Code, @Index, 1);
+        -- Karakterin karakter kümesinde olup olmadığını kontrol eder
+        IF CHARINDEX(@Char, @CharacterSet) = 0
+        BEGIN
+            SET @IsValid = 0;
+            RETURN;
+        END;
+        SET @Index = @Index + 1;
+    END;
+    
+    SET @IsValid = 1; -- Geçerli kod
+END
